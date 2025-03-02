@@ -4,6 +4,7 @@ import rssService from '../services/RssService';
 import scraperService from '../services/ScraperService';
 import summarizerService from '../services/SummarizerService';
 import databaseService from '../services/DatabaseService';
+import redirectService from '../services/RedirectService';
 import config from '../config';
 import mongoose from 'mongoose';
 
@@ -41,25 +42,56 @@ export class NewsScheduler {
       logger.info(`Retrieved ${newsItems.length} news items from RSS`);
       
       // Extract source URLs
-      const sourceUrls = newsItems.map(item => rssService.extractSourceUrl(item.link));
+      const initialUrls = newsItems.map(item => item.link);
+
+      // Process URLs in batches to avoid too many concurrent requests
+      const finalUrls = [];
+      const batchSize = 5;
       
-      // Filter out already processed URLs
-      const unprocessedUrls = await databaseService.getUnprocessedUrls(sourceUrls);
-      logger.info(`Found ${unprocessedUrls.length} unprocessed URLs out of ${sourceUrls.length} total`);
+      for (let i = 0; i < initialUrls.length; i += batchSize) {
+        const batch = initialUrls.slice(i, i + batchSize);
+        const redirectBatch = await Promise.all(
+          batch.map(url => redirectService.getFinalUrl(url))
+        );
+        finalUrls.push(...redirectBatch);
+        
+        // Small delay to be nice to servers
+        if (i + batchSize < initialUrls.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
       
-      // Create a map for quick lookup of news items by URL
+      // Create a mapping between original URLs and their redirected versions
+      const urlMap = new Map();
+      for (let i = 0; i < initialUrls.length; i++) {
+        if (i < finalUrls.length) {
+          urlMap.set(initialUrls[i], finalUrls[i]);
+        }
+      }
+      
+      // Create news item lookup using the correct redirected URLs
       const newsItemsByUrl = new Map();
       newsItems.forEach(item => {
-        const sourceUrl = rssService.extractSourceUrl(item.link);
-        newsItemsByUrl.set(sourceUrl, item);
+        const originalUrl = item.link;
+        const finalUrl = urlMap.get(originalUrl);
+        if (finalUrl) {
+          newsItemsByUrl.set(finalUrl, item);
+        }
       });
+      
+      // Filter out already processed URLs
+      const unprocessedUrls = await databaseService.getUnprocessedUrls(finalUrls);
+      logger.info(`Found ${unprocessedUrls.length} unprocessed URLs out of ${finalUrls.length} total`);
       
       // Process each unprocessed URL
       for (const url of unprocessedUrls) {
         try {
           // Get the original news item
           const item = newsItemsByUrl.get(url);
-          if (!item) continue;
+          if (!item) {
+            logger.warn(`No news item found for URL: ${url}`);
+            continue;
+          }
           
           // Scrape the article content
           const scrapedContent = await scraperService.scrapeArticle(url);
@@ -80,8 +112,8 @@ export class NewsScheduler {
             contentSummary: summary,
             imageUrl: scrapedContent.imageUrl,
             source: scrapedContent.siteName || source,
-            author: scrapedContent.author || 'Unknown Author', // Default author
-            publishedAt: new Date(scrapedContent.publishedAt || item.pubDate || new Date()), // Default to current date if missing
+            author: scrapedContent.author || 'Unknown Author',
+            publishedAt: new Date(scrapedContent.publishedAt || item.pubDate || new Date()),
             updatedAt: new Date(),
             region: 'US',
             categories: item.categories || ['Immigration'],
