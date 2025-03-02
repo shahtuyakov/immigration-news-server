@@ -78,10 +78,10 @@ export class NewsScheduler {
             headline: scrapedContent.title || item.title,
             content: scrapedContent.content,
             contentSummary: summary,
-            // imageUrl: scrapedContent.imageUrl,
+            imageUrl: scrapedContent.imageUrl,
             source: scrapedContent.siteName || source,
-            // author: scrapedContent.author,
-            // publishedAt: new Date(scrapedContent.publishedAt || item.pubDate),
+            author: scrapedContent.author || 'Unknown Author', // Default author
+            publishedAt: new Date(scrapedContent.publishedAt || item.pubDate || new Date()), // Default to current date if missing
             updatedAt: new Date(),
             region: 'US',
             categories: item.categories || ['Immigration'],

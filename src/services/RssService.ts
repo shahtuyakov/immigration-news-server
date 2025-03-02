@@ -34,7 +34,21 @@ export class RssService {
       
       logger.info(`Fetched ${feed.items.length} items from RSS feed`);
       
-      return feed.items as GoogleNewsItem[];
+      // Sort items by date (newest first) and take only the most recent 2
+      const sortedItems = (feed.items as GoogleNewsItem[]).sort((a, b) => {
+        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+      });
+      
+      // Limit to first 2 most recent items
+      const limitedItems = sortedItems.slice(0, 2);
+      logger.info(`Processing only the 2 most recent news items from RSS feed`);
+      
+      // Log the items being processed
+      limitedItems.forEach((item, index) => {
+        logger.info(`Item ${index + 1}: "${item.title}" - Published: ${item.pubDate}`);
+      });
+      
+      return limitedItems;
     } catch (error) {
       logger.error('Error fetching RSS feed:', error);
       throw new Error(`RSS feed fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
