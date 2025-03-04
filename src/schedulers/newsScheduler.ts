@@ -41,63 +41,31 @@ export class NewsScheduler {
       const newsItems = await rssService.fetchImmigrationNews();
       logger.info(`Retrieved ${newsItems.length} news items from RSS`);
       
-      // Extract source URLs
-      const initialUrls = newsItems.map(item => item.link);
-
-      // Process URLs in batches to avoid too many concurrent requests
-      const finalUrls = [];
-      const batchSize = 5;
-      
-      for (let i = 0; i < initialUrls.length; i += batchSize) {
-        const batch = initialUrls.slice(i, i + batchSize);
-        const redirectBatch = await Promise.all(
-          batch.map(url => redirectService.getFinalUrl(url))
-        );
-        finalUrls.push(...redirectBatch);
+      // First, extract URLs that need processing
+      for (const item of newsItems) {
+        // Log the original Google News URL for debugging
+        logger.info(`Processing RSS item: ${item.title}`);
+        logger.info(`Original URL: ${item.link}`);
         
-        // Small delay to be nice to servers
-        if (i + batchSize < initialUrls.length) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      }
-      
-      // Create a mapping between original URLs and their redirected versions
-      const urlMap = new Map();
-      for (let i = 0; i < initialUrls.length; i++) {
-        if (i < finalUrls.length) {
-          urlMap.set(initialUrls[i], finalUrls[i]);
-        }
-      }
-      
-      // Create news item lookup using the correct redirected URLs
-      const newsItemsByUrl = new Map();
-      newsItems.forEach(item => {
-        const originalUrl = item.link;
-        const finalUrl = urlMap.get(originalUrl);
-        if (finalUrl) {
-          newsItemsByUrl.set(finalUrl, item);
-        }
-      });
-      
-      // Filter out already processed URLs
-      const unprocessedUrls = await databaseService.getUnprocessedUrls(finalUrls);
-      logger.info(`Found ${unprocessedUrls.length} unprocessed URLs out of ${finalUrls.length} total`);
-      
-      // Process each unprocessed URL
-      for (const url of unprocessedUrls) {
         try {
-          // Get the original news item
-          const item = newsItemsByUrl.get(url);
-          if (!item) {
-            logger.warn(`No news item found for URL: ${url}`);
+          // Get the final URL after redirects
+          const finalUrl = await redirectService.getFinalUrl(item.link);
+          logger.info(`Final URL: ${finalUrl}`);
+          
+          // Check if URL has been processed already
+          const isProcessed = await databaseService.isUrlProcessed(finalUrl);
+          
+          if (isProcessed) {
+            logger.info(`Skipping already processed URL: ${finalUrl}`);
             continue;
           }
           
           // Scrape the article content
-          const scrapedContent = await scraperService.scrapeArticle(url);
+          logger.info(`Scraping content from: ${finalUrl}`);
+          const scrapedContent = await scraperService.scrapeArticle(finalUrl);
           
           // Extract domain from URL as source
-          const source = new URL(url).hostname;
+          const source = new URL(finalUrl).hostname;
           
           // Summarize the content
           const summary = await summarizerService.summarizeContent(
@@ -126,12 +94,13 @@ export class NewsScheduler {
           const savedNews = await databaseService.saveNews(newsData);
           
           // Mark URL as processed
-          await databaseService.markUrlAsProcessed(url, true, savedNews._id as mongoose.Types.ObjectId);
+          await databaseService.markUrlAsProcessed(finalUrl, true, savedNews._id as mongoose.Types.ObjectId);
           
+          logger.info(`Successfully processed article: ${newsData.headline}`);
         } catch (error) {
-          logger.error(`Error processing URL ${url}:`, error);
-          // Mark as processed but failed
-          await databaseService.markUrlAsProcessed(url, false);
+          logger.error(`Error processing item "${item.title}":`, error);
+          // Mark original URL as processed but failed
+          await databaseService.markUrlAsProcessed(item.link, false);
           continue;
         }
       }

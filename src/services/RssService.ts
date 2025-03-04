@@ -1,4 +1,3 @@
-import axios from 'axios';
 import Parser from 'rss-parser';
 import { logger } from '../utils/logger';
 
@@ -9,6 +8,7 @@ interface GoogleNewsItem {
   source: string;
   guid: string;
   categories?: string[];
+  contentSnippet?: string;
 }
 
 export class RssService {
@@ -20,6 +20,7 @@ export class RssService {
         item: [
           'source',
           'categories',
+          'contentSnippet'
         ],
       },
     });
@@ -27,25 +28,39 @@ export class RssService {
 
   async fetchImmigrationNews(): Promise<GoogleNewsItem[]> {
     try {
-      // US Immigration news feed URL
-      const feedUrl = 'https://news.google.com/rss/search?q=us+immigration&hl=en-US&gl=US&ceid=US:en';
+      // US Immigration news feed URL - improve search query for better results
+      const feedUrl = 'https://news.google.com/rss/search?q=us+immigration+policy+OR+immigration+law+OR+USCIS+OR+visa&hl=en-US&gl=US&ceid=US:en';
       
+      logger.info(`Fetching RSS feed from: ${feedUrl}`);
       const feed = await this.parser.parseURL(feedUrl);
       
       logger.info(`Fetched ${feed.items.length} items from RSS feed`);
       
-      // Sort items by date (newest first) and take only the most recent 2
-      const sortedItems = (feed.items as GoogleNewsItem[]).sort((a, b) => {
+      // Extract relevant fields from each item
+      const newsItems = feed.items.map(item => {
+        return {
+          title: item.title || 'No Title',
+          link: item.link || '',
+          pubDate: item.pubDate || new Date().toISOString(),
+          source: this.extractSourceFromTitle(item.title || ''),
+          guid: item.guid || item.link || '',
+          categories: (item.categories || ['Immigration']),
+          contentSnippet: item.contentSnippet || ''
+        } as GoogleNewsItem;
+      });
+      
+      // Sort items by date (newest first)
+      const sortedItems = newsItems.sort((a, b) => {
         return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
       });
       
-      // Limit to first 2 most recent items
-      const limitedItems = sortedItems.slice(0, 2);
-      logger.info(`Processing only the 2 most recent news items from RSS feed`);
+      // Limit to first 5 most recent items for processing
+      const limitedItems = sortedItems.slice(0, 5);
+      logger.info(`Processing the ${limitedItems.length} most recent news items from RSS feed`);
       
       // Log the items being processed
       limitedItems.forEach((item, index) => {
-        logger.info(`Item ${index + 1}: "${item.title}" - Published: ${item.pubDate}`);
+        logger.info(`Item ${index + 1}: "${item.title}" from "${item.source}" - Published: ${item.pubDate}`);
       });
       
       return limitedItems;
@@ -55,6 +70,14 @@ export class RssService {
     }
   }
 
+  // Extract source publication from Google News title format "Title - Source"
+  private extractSourceFromTitle(title: string): string {
+    const match = title.match(/\s+-\s+([^-]+)$/);
+    return match ? match[1].trim() : 'Unknown Source';
+  }
+
+  // This method can be used to extract URLs directly from Google News links
+  // though we're now using RedirectService for this purpose
   extractSourceUrl(googleNewsUrl: string): string {
     try {
       // Google News URLs typically redirect to source - extract the real URL
@@ -62,7 +85,7 @@ export class RssService {
       const sourceUrl = url.searchParams.get('url');
       return sourceUrl || googleNewsUrl;
     } catch (error) {
-      logger.warn(`Could not extract source URL from ${googleNewsUrl}`);
+      logger.warn(`Could not extract source URL from ${googleNewsUrl}`, error);
       return googleNewsUrl;
     }
   }
