@@ -1,24 +1,23 @@
 import cron from 'node-cron';
-import { logger } from '../utils/logger';
-import rssService from '../services/RssService';
-import scraperService from '../services/ScraperService';
-import summarizerService from '../services/SummarizerService';
-import databaseService from '../services/DatabaseService';
-import redirectService from '../services/RedirectService';
-import config from '../config';
-import mongoose from 'mongoose';
+import { logger } from '../utils/logger'; // Assumed logging utility
+import { parseStringPromise } from 'xml2js'; // For parsing RSS XML
+import axios from 'axios';
+import redirectService from '../services/RedirectService'; // Redirect service singleton
+import config from '../config'; // Assumed configuration file
 
 export class NewsScheduler {
   private schedule: string;
-  
+  private rssUrl: string;
+
   constructor() {
-    // Default to running twice per hour (at 0 and 30 minutes)
+    // Default schedule: every 30 minutes
     this.schedule = config.RSS_CRON_SCHEDULE || '0,30 * * * *';
+    // Sample Google News RSS feed for US immigration news
+    this.rssUrl = 'https://news.google.com/rss/search?q=us+immigration+policy+OR+immigration+law+OR+USCIS+OR+visa&hl=en-US&gl=US&ceid=US:en';
   }
-  
+
   start(): void {
     logger.info(`Starting news scheduler with schedule: ${this.schedule}`);
-    
     cron.schedule(this.schedule, async () => {
       try {
         await this.processNewsFeed();
@@ -26,95 +25,55 @@ export class NewsScheduler {
         logger.error('Error in scheduled news processing:', error);
       }
     });
-    
+
     // Run immediately on startup
     this.processNewsFeed().catch(error => {
       logger.error('Error in initial news processing:', error);
     });
   }
-  
+
   async processNewsFeed(): Promise<void> {
     logger.info('Starting news feed processing');
-    
     try {
       // Fetch RSS feed
-      const newsItems = await rssService.fetchImmigrationNews();
-      logger.info(`Retrieved ${newsItems.length} news items from RSS`);
-      
-      // First, extract URLs that need processing
-      for (const item of newsItems) {
-        // Log the original Google News URL for debugging
-        logger.info(`Processing RSS item: ${item.title}`);
-        logger.info(`Original URL: ${item.link}`);
-        
-        try {
-          // Get the final URL after redirects
-          const finalUrl = await redirectService.getFinalUrl(item.link);
-          logger.info(`Final URL: ${finalUrl}`);
-          
-          // Check if URL has been processed already
-          const isProcessed = await databaseService.isUrlProcessed(finalUrl);
-          
-          if (isProcessed) {
-            logger.info(`Skipping already processed URL: ${finalUrl}`);
-            continue;
-          }
-          
-          // Scrape the article content
-          logger.info(`Scraping content from: ${finalUrl}`);
-          const scrapedContent = await scraperService.scrapeArticle(finalUrl);
-          
-          // Extract domain from URL as source
-          const source = new URL(finalUrl).hostname;
-          
-          // Summarize the content
-          const summary = await summarizerService.summarizeContent(
-            scrapedContent.content,
-            scrapedContent.title
-          );
-          
-          // Prepare the news object
-          const newsData = {
-            headline: scrapedContent.title || item.title,
-            content: scrapedContent.content,
-            contentSummary: summary,
-            imageUrl: scrapedContent.imageUrl,
-            source: scrapedContent.siteName || source,
-            author: scrapedContent.author || 'Unknown Author',
-            publishedAt: new Date(scrapedContent.publishedAt || item.pubDate || new Date()),
-            updatedAt: new Date(),
-            region: 'US',
-            categories: item.categories || ['Immigration'],
-            tags: ['immigration', 'news'],
-            contentLength: scrapedContent.content.length,
-            timezone: 'America/New_York'
-          };
-          
-          // Save to database
-          const savedNews = await databaseService.saveNews(newsData);
-          
-          // Mark URL as processed
-          await databaseService.markUrlAsProcessed(finalUrl, true, savedNews._id as mongoose.Types.ObjectId);
-          
-          logger.info(`Successfully processed article: ${newsData.headline}`);
-        } catch (error) {
-          logger.error(`Error processing item "${item.title}":`, error);
-          // Mark original URL as processed but failed
-          await databaseService.markUrlAsProcessed(item.link, false);
-          continue;
+      const response = await axios.get(this.rssUrl);
+      const rssResponse = response.data;
+
+      // Parse RSS XML to JSON
+      const result = await parseStringPromise(rssResponse, { explicitArray: false });
+      const items = result.rss.channel.item;
+
+      // Ensure items is an array
+      const newsItems = Array.isArray(items) ? items : [items];
+
+      // For testing purposes, process only the first item
+      if (newsItems.length > 0) {
+        const item = newsItems[0]; // Select the first item
+        logger.info(`Processing test item: "${item.title}" from "${item.source._}"`);
+
+        const googleNewsUrl = item.link; // Google News redirect URL
+        const sourceUrl = item.source["$"].url; // e.g., "https://news.berkeley.edu"
+
+        if (!sourceUrl) {
+          logger.warn(`No source URL found for item: ${item.title}`);
+          return;
         }
+
+        // Resolve the final article URL
+        const finalUrl = await redirectService.getFinalUrl(googleNewsUrl, sourceUrl);
+        logger.info(`Resolved URL: ${googleNewsUrl} → ${finalUrl}`);
+
+        // Placeholder for further processing (e.g., scraping and saving)
+        // TODO: await scrapeAndSave(finalUrl, item);
+      } else {
+        logger.info('No items found in the RSS feed.');
       }
-      
+
       logger.info('Completed news feed processing');
     } catch (error) {
       logger.error('Error in news feed processing:', error);
       throw error;
     }
-  }
-  
-  updateSchedule(newSchedule: string): void {
-    this.schedule = newSchedule;
-    logger.info(`Updated news scheduler to run with schedule: ${this.schedule}`);
   }
 }
 

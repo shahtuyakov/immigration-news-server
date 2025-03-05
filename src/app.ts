@@ -1,9 +1,9 @@
 import express from 'express';
-import { connectDatabase } from './config/database';
-import { logger } from './utils/logger';
-import config from './config';
-import newsRoutes from './routes/newsRoutes';
-import newsScheduler from './schedulers/newsScheduler';
+import { connectDatabase } from './config/database'; // Assumed database connection utility
+import { logger } from './utils/logger'; // Assumed logging utility
+import config from './config'; // Assumed configuration file
+import newsRoutes from './routes/newsRoutes'; // Assumed routes for news API
+import newsScheduler from './schedulers/newsScheduler'; // News scheduler singleton
 
 const app = express();
 
@@ -21,16 +21,33 @@ app.get('/health', (req, res) => {
 // Start the server
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+    // Connect to the database (e.g., MongoDB)
     await connectDatabase();
-    
-    // Start the scheduler
+    logger.info('Database connected successfully.');
+
+    // Start the news scheduler
     newsScheduler.start();
-    
+    logger.info('News scheduler started.');
+
     // Start Express server
-    const PORT = config.PORT;
-    app.listen(PORT, () => {
+    const PORT = config.PORT || 3030; // Default to 3030 if not set in config
+    const server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT} in ${config.NODE_ENV} mode`);
+    });
+
+    // Handle server startup errors
+    server.on('error', (err) => {
+      logger.error('Server failed to start:', err);
+      process.exit(1);
+    });
+
+    // Graceful shutdown on SIGTERM
+    process.on('SIGTERM', () => {
+      logger.info('SIGTERM received. Shutting down gracefully.');
+      server.close(() => {
+        logger.info('Server closed.');
+        process.exit(0);
+      });
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
