@@ -20,13 +20,7 @@ export class RedirectService {
         headers: { 'User-Agent': userAgent },
       });
 
-      // Check for HTTP redirect
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.location;
-        if (location) {
-          return new URL(location, url).toString();
-        }
-      }
+      console.log(`Response: ${response.status}`);
 
       const finalUrl = response.request.res.responseUrl || url;
       logger.info(`Followed redirects: ${url} → ${finalUrl}`);
