@@ -61,7 +61,6 @@ export class NewsScheduler {
 
         // Resolve the final article URL
         const finalUrl = await redirectService.getFinalUrl(googleNewsUrl, sourceUrl);
-        logger.info(`Resolved URL: ${googleNewsUrl} → ${finalUrl}`);
 
         // Placeholder for further processing (e.g., scraping and saving)
         // TODO: await scrapeAndSave(finalUrl, item);

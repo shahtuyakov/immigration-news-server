@@ -55,7 +55,7 @@ export class RssService {
       });
       
       // Limit to first 5 most recent items for processing
-      const limitedItems = sortedItems.slice(0, 5);
+      const limitedItems = sortedItems.slice(0, 1);
       logger.info(`Processing the ${limitedItems.length} most recent news items from RSS feed`);
       
       // Log the items being processed
