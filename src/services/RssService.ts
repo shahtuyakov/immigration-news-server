@@ -75,20 +75,6 @@ export class RssService {
     const match = title.match(/\s+-\s+([^-]+)$/);
     return match ? match[1].trim() : 'Unknown Source';
   }
-
-  // This method can be used to extract URLs directly from Google News links
-  // though we're now using RedirectService for this purpose
-  extractSourceUrl(googleNewsUrl: string): string {
-    try {
-      // Google News URLs typically redirect to source - extract the real URL
-      const url = new URL(googleNewsUrl);
-      const sourceUrl = url.searchParams.get('url');
-      return sourceUrl || googleNewsUrl;
-    } catch (error) {
-      logger.warn(`Could not extract source URL from ${googleNewsUrl}`, error);
-      return googleNewsUrl;
-    }
-  }
 }
 
 export default new RssService();
