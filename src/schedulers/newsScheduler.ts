@@ -1,19 +1,32 @@
 import cron from 'node-cron';
-import { logger } from '../utils/logger'; // Assumed logging utility
-import { parseStringPromise } from 'xml2js'; // For parsing RSS XML
-import axios from 'axios';
-import redirectService from '../services/RedirectService'; // Redirect service singleton
-import config from '../config'; // Assumed configuration file
+import { logger } from '../utils/logger';
+import config from '../config';
+import rssService from '../services/RssService';
+import redirectService from '../services/RedirectService';
+import scraperService from '../services/ScraperService';
+import { SummarizerService } from '../services/SummarizerService';
+import databaseService from '../services/DatabaseService';
+import { ObjectId } from 'bson';
+import { chromium } from 'playwright';
 
 export class NewsScheduler {
   private schedule: string;
-  private rssUrl: string;
+  private browser: any;
+  private context: any;
 
   constructor() {
     // Default schedule: every 30 minutes
     this.schedule = config.RSS_CRON_SCHEDULE || '0,30 * * * *';
-    // Sample Google News RSS feed for US immigration news
-    this.rssUrl = 'https://news.google.com/rss/search?q=immigration+news&hl=en-US&gl=US&ceid=US:en';
+  }
+
+  async initBrowser() {
+    this.browser = await chromium.launch();
+    this.context = await this.browser.newContext();
+  }
+
+  async closeBrowser() {
+    await this.context.close();
+    await this.browser.close();
   }
 
   start(): void {
@@ -34,44 +47,89 @@ export class NewsScheduler {
 
   async processNewsFeed(): Promise<void> {
     logger.info('Starting news feed processing');
+    await this.initBrowser();
     try {
-      // Fetch RSS feed
-      const response = await axios.get(this.rssUrl);
-      const rssResponse = response.data;
+      // Get RSS feed items
+      const newsItems = await rssService.fetchImmigrationNews();
+      logger.info(`Retrieved ${newsItems.length} items from RSS feed`);
 
-      // Parse RSS XML to JSON
-      const result = await parseStringPromise(rssResponse, { explicitArray: false });
-      const items = result.rss.channel.item;
-
-      // Ensure items is an array
-      const newsItems = Array.isArray(items) ? items : [items];
-
-      // For testing purposes, process only the first item
-      if (newsItems.length > 0) {
-        const item = newsItems[0]; // Select the first item
-        logger.info(`Processing test item: "${item.title}" from "${item.source._}"`);
-
-        const googleNewsUrl = item.link; // Google News redirect URL
-        const sourceUrl = item.source["$"].url; // e.g., "https://news.berkeley.edu"
-
-        if (!sourceUrl) {
-          logger.warn(`No source URL found for item: ${item.title}`);
-          return;
-        }
-
-        // Resolve the final article URL
-        const finalUrl = await redirectService.getFinalUrl(googleNewsUrl, sourceUrl);
-
-        // Placeholder for further processing (e.g., scraping and saving)
-        // TODO: await scrapeAndSave(finalUrl, item);
-      } else {
-        logger.info('No items found in the RSS feed.');
+      // Process each news item
+      for (const item of newsItems) {
+        await this.processSingleNewsItem(item);
       }
-
       logger.info('Completed news feed processing');
     } catch (error) {
       logger.error('Error in news feed processing:', error);
       throw error;
+    } finally {
+      await this.closeBrowser();
+    }
+  }
+
+  private async processSingleNewsItem(item: any): Promise<void> {
+    const googleNewsUrl = item.link;
+
+    try {
+      // Check if URL has been processed already
+      const isProcessed = await databaseService.isUrlProcessed(googleNewsUrl);
+      if (isProcessed) {
+        logger.info(`URL already processed: ${googleNewsUrl}`);
+        return;
+      }
+
+      // Resolve the final article URL
+      const finalUrl = await redirectService.getFinalUrl(googleNewsUrl);
+      logger.info(`Resolved URL: ${googleNewsUrl} -> ${finalUrl}`);
+
+      // Ensure you never scrape Google News URLs
+      if (finalUrl.includes('news.google.com')) {
+        logger.warn(`Redirect failed, skipping URL: ${item.link}`);
+        await databaseService.markUrlAsProcessed(item.link, false);
+        return;
+      }
+
+      // Scrape the article content
+      const scrapedContent = await scraperService.scrapeArticle(finalUrl);
+
+      // Summarize the content
+      const summary = await new SummarizerService().summarizeContent(
+        scrapedContent.content,
+        scrapedContent.title
+      );
+
+      // Prepare the news object to save in database
+      const newsData = {
+        headline: scrapedContent.title,
+        content: scrapedContent.content,
+        contentSummary: summary,
+        imageUrl: scrapedContent.imageUrl,
+        source: scrapedContent.siteName || item.source,
+        author: scrapedContent.author || 'Unknown',
+        publishedAt: scrapedContent.publishedAt ? new Date(scrapedContent.publishedAt) : new Date(item.pubDate),
+        updatedAt: new Date(),
+        region: 'US', // Default region
+        categories: item.categories || ['Immigration'],
+        tags: ['immigration'], // Default tag
+        contentLength: scrapedContent.content.length,
+        timezone: 'UTC' // Default timezone
+      };
+
+      // Save to database
+      const savedNews = await databaseService.saveNews(newsData);
+      if (!savedNews?._id) throw new Error('Failed to save news - no ID returned');
+
+      // Mark URL as processed
+      await databaseService.markUrlAsProcessed(
+        googleNewsUrl,
+        true,
+        new ObjectId(savedNews._id.toString())
+      );
+
+      logger.info(`Successfully processed and saved article: ${newsData.headline}`);
+    } catch (error) {
+      logger.error(`Error processing item ${googleNewsUrl}:`, error);
+      // Mark URL as processed but with error
+      await databaseService.markUrlAsProcessed(googleNewsUrl, false);
     }
   }
 }

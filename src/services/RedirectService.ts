@@ -2,12 +2,6 @@ import { chromium } from 'playwright';
 import { logger } from '../utils/logger'; // Assumed logging utility
 
 export class RedirectService {
-  /**
-   * Resolves the final article URL from a given URL, optionally using a source URL.
-   * @param url The initial URL (e.g., Google News link)
-   * @param sourceUrl Optional publisher base URL (e.g., "https://news.berkeley.edu")
-   * @returns The resolved article URL
-   */
   async getFinalUrl(url: string, sourceUrl: string | null = null): Promise<string> {
     const browser = await chromium.launch();
     const page = await browser.newPage();

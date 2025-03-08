@@ -10,5 +10,6 @@ export default {
   SPIDER_CLOUD_API_KEY: process.env.SPIDER_CLOUD_API_KEY,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   RSS_CRON_SCHEDULE: process.env.RSS_CRON_SCHEDULE || '*/30 * * * *',
-  LOG_LEVEL: process.env.LOG_LEVEL || 'info'
+  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+  SUMMARY_PROMPT: process.env.SUMMARY_PROMPT || 'Summarize content in 10-15 sentences, focusing specifically on immigration policy, key points, implications, and relevant context.'
 };
