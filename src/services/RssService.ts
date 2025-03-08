@@ -29,7 +29,7 @@ export class RssService {
   async fetchImmigrationNews(): Promise<GoogleNewsItem[]> {
     try {
       // US Immigration news feed URL - improve search query for better results
-      const feedUrl = 'https://news.google.com/rss/search?q=us+immigration+policy+OR+immigration+law+OR+USCIS+OR+visa&hl=en-US&gl=US&ceid=US:en';
+      const feedUrl = 'https://news.google.com/rss/search?q=immigration+news&hl=en-US&gl=US&ceid=US:en';
       
       logger.info(`Fetching RSS feed from: ${feedUrl}`);
       const feed = await this.parser.parseURL(feedUrl);
