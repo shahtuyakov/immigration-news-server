@@ -23,9 +23,9 @@ export class SummarizerService {
     }
 
     const requestPayload = {
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: config.SUMMARY_PROMPT },
+        { role: 'system', content: this.prompt },
         { role: 'user', content: `Title: ${title}\n\nContent: ${content.substring(0, 8000)}` }
       ],
       max_tokens: 250,
