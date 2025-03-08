@@ -13,7 +13,7 @@ export class NewsScheduler {
     // Default schedule: every 30 minutes
     this.schedule = config.RSS_CRON_SCHEDULE || '0,30 * * * *';
     // Sample Google News RSS feed for US immigration news
-    this.rssUrl = 'https://news.google.com/rss/search?q=us+immigration+policy+OR+immigration+law+OR+USCIS+OR+visa&hl=en-US&gl=US&ceid=US:en';
+    this.rssUrl = 'https://news.google.com/rss/search?q=immigration+news&hl=en-US&gl=US&ceid=US:en';
   }
 
   start(): void {
