@@ -5,7 +5,6 @@ export interface INews extends Document {
   contentSummary: string;
   source: string;
   publishedAt: Date;
-  updatedAt: Date;
   categories: string[];
   tags: string[];
   timezone: string;
@@ -16,7 +15,6 @@ const NewsSchema = new Schema<INews>({
   contentSummary: { type: String, required: true },
   source: { type: String, required: true, index: true },
   publishedAt: { type: Date, required: true, index: true },
-  updatedAt: { type: Date, required: true },
   categories: { type: [String], required: true, index: true },
   tags: { type: [String], required: true, index: true },
   timezone: { type: String, required: true }

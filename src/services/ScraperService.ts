@@ -29,8 +29,6 @@ export class ScraperService {
     try {
       logger.info(`Starting to scrape article from: ${url}`);
       
-      console.log(`Attempting to scrape: ${url}`);
-      
       const requestData = {
         url: url,
         limit: 1,
@@ -49,18 +47,6 @@ export class ScraperService {
         }
       );
       
-      // Log the raw response from Spider crawler
-      console.log('Spider crawler raw response:');
-      console.log(JSON.stringify(response.data, null, 2));
-
-      fs.writeFile('result.json', JSON.stringify(response.data, null, 2), (err) => {
-        if (err) {
-          console.error('Error saving file:', err);
-        } else {
-          console.log('Result saved to result.json');
-        }
-      });
-      
       const content = response.data.content || 
                     (Array.isArray(response.data) && response.data[0]?.content);
       
@@ -70,10 +56,6 @@ export class ScraperService {
       
       // Extract domain from URL
       const domain = new URL(url).hostname;
-      
-      // Log content length and metadata
-      console.log(`Spider crawler content length: ${content.length} characters`);
-      console.log(`Spider crawler metadata:`, response.data || 'No metadata available');
       
       logger.info(`Successfully scraped article from ${domain}. Content length: ${content.length} chars`);
       

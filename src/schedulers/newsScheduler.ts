@@ -92,20 +92,20 @@ export class NewsScheduler {
       const scrapedContent = await scraperService.scrapeArticle(finalUrl);
 
       // Summarize the content
-      const summary = await new SummarizerService().summarizeContent(
-        scrapedContent.content,
-        scrapedContent.title
-      );
+      // const summary = await new SummarizerService().summarizeContent(
+      //   scrapedContent.content,
+      //   scrapedContent.title
+      // );
 
       // Prepare the news object to save in database
       const newsData = {
-        headline: scrapedContent.title,
-        contentSummary: summary,
-        source: scrapedContent.siteName || item.source,
-        publishedAt: scrapedContent.publishedAt ? new Date(scrapedContent.publishedAt) : new Date(item.pubDate),
-        updatedAt: new Date(),
-        categories: item.categories || ['Immigration'],
-        tags: ['immigration'],
+        headline: 'Headline test',
+        contentSummary: 'Content summary test',
+        source: 'Source test',
+        publishedAt: new Date(),
+        categories: ['Immigration', 'News'],
+        tags: ['immigration', 'news'],
+        timezone: 'UTC' 
       }
 
       // Save to database
