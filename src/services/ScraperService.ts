@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { logger } from '../utils/logger';
 import config from '../config';
-import fs from 'fs';
 
 interface ScraperResult {
   content: string;
@@ -9,6 +8,7 @@ interface ScraperResult {
   siteName: string;
   author?: string;
   publishedAt?: string;
+  metadata?: any;
 }
 
 export class ScraperService {
@@ -33,7 +33,8 @@ export class ScraperService {
         url: url,
         limit: 1,
         return_format: 'markdown',
-        readability: true
+        readability: true,
+        metadata: true
       };
       
       const response = await axios.post<ScraperResult>(
@@ -59,20 +60,13 @@ export class ScraperService {
       
       logger.info(`Successfully scraped article from ${domain}. Content length: ${content.length} chars`);
       
-      // Extract a basic date from the content or URL as fallback for publishedAt
-      const dateMatch = content.match(/\b\d{1,2}\/\d{1,2}\/\d{4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/);
-      const extractedDate = dateMatch ? dateMatch[0] : null;
-      
-      // Extract any potential author information from content
-      const authorMatch = content.match(/[Bb]y\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/);
-      const extractedAuthor = authorMatch ? authorMatch[1] : null;
-      
       return {
         content: content,
         title: response.data.title,
         siteName: domain,
-        author: extractedAuthor || 'Unknown Author',
-        publishedAt: extractedDate || new Date().toISOString(),
+        author: 'Unknown Author',
+        publishedAt: new Date().toISOString(),
+        metadata: response.data.metadata
       };
     } catch (error) {
       logger.error(`Error scraping article from ${url}:`, error);

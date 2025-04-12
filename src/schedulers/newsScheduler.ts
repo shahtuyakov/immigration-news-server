@@ -91,11 +91,13 @@ export class NewsScheduler {
       // Scrape the article content
       const scrapedContent = await scraperService.scrapeArticle(finalUrl);
 
+      // console.log(scrapedContent);
+
       // Summarize the content
-      // const summary = await new SummarizerService().summarizeContent(
-      //   scrapedContent.content,
-      //   scrapedContent.title
-      // );
+      const summary = await new SummarizerService().summarizeContent(
+        scrapedContent.content,
+        scrapedContent.title
+      );
 
       // Prepare the news object to save in database
       const newsData = {
