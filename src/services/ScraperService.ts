@@ -6,16 +6,9 @@ import fs from 'fs';
 interface ScraperResult {
   content: string;
   title: string;
-  description: string;
   siteName: string;
   author?: string;
   publishedAt?: string;
-  imageUrl?: string;
-  metadata?: {
-    title?: string;
-    description?: string;
-    image?: string;
-  };
 }
 
 export class ScraperService {
@@ -80,14 +73,9 @@ export class ScraperService {
       
       // Log content length and metadata
       console.log(`Spider crawler content length: ${content.length} characters`);
-      console.log(`Spider crawler metadata:`, response.data.metadata || 'No metadata available');
+      console.log(`Spider crawler metadata:`, response.data || 'No metadata available');
       
       logger.info(`Successfully scraped article from ${domain}. Content length: ${content.length} chars`);
-      
-      // Handle both array and object response formats
-      const metadata = response.data.metadata || 
-                      (Array.isArray(response.data) && response.data[0]?.metadata) || 
-                      {};
       
       // Extract a basic date from the content or URL as fallback for publishedAt
       const dateMatch = content.match(/\b\d{1,2}\/\d{1,2}\/\d{4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/);
@@ -99,12 +87,10 @@ export class ScraperService {
       
       return {
         content: content,
-        title: metadata?.title || domain,
-        description: metadata?.description || '',
+        title: response.data.title,
         siteName: domain,
         author: extractedAuthor || 'Unknown Author',
         publishedAt: extractedDate || new Date().toISOString(),
-        imageUrl: metadata?.image || null
       };
     } catch (error) {
       logger.error(`Error scraping article from ${url}:`, error);

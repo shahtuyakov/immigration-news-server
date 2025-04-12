@@ -14,7 +14,7 @@ export class DatabaseService {
       
       if (existingNews) {
         // Update existing record if needed
-        if (existingNews.content !== newsData.content) {
+        if (existingNews.contentSummary !== newsData.contentSummary) {
           Object.assign(existingNews, newsData, {
             updatedAt: new Date()
           });

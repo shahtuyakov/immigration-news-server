@@ -2,33 +2,23 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface INews extends Document {
   headline: string;
-  content: string;
   contentSummary: string;
-  imageUrl?: string;
   source: string;
-  author: string;
   publishedAt: Date;
   updatedAt: Date;
-  region: string;
   categories: string[];
   tags: string[];
-  contentLength: number;
   timezone: string;
 }
 
 const NewsSchema = new Schema<INews>({
   headline: { type: String, required: true, index: true },
-  content: { type: String, required: true },
   contentSummary: { type: String, required: true },
-  imageUrl: { type: String },
   source: { type: String, required: true, index: true },
-  author: { type: String, required: true },
   publishedAt: { type: Date, required: true, index: true },
   updatedAt: { type: Date, required: true },
-  region: { type: String, required: true, index: true },
   categories: { type: [String], required: true, index: true },
   tags: { type: [String], required: true, index: true },
-  contentLength: { type: Number, required: true },
   timezone: { type: String, required: true }
 }, {
   timestamps: true

@@ -54,7 +54,7 @@ export class RssService {
         return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
       });
       
-      // Limit to first 5 most recent items for processing
+      // Limit to first 1 most recent items for processing
       const limitedItems = sortedItems.slice(0, 1);
       logger.info(`Processing the ${limitedItems.length} most recent news items from RSS feed`);
       

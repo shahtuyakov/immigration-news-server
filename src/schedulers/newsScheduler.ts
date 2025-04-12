@@ -100,19 +100,13 @@ export class NewsScheduler {
       // Prepare the news object to save in database
       const newsData = {
         headline: scrapedContent.title,
-        content: scrapedContent.content,
         contentSummary: summary,
-        imageUrl: scrapedContent.imageUrl,
         source: scrapedContent.siteName || item.source,
-        author: scrapedContent.author || 'Unknown',
         publishedAt: scrapedContent.publishedAt ? new Date(scrapedContent.publishedAt) : new Date(item.pubDate),
         updatedAt: new Date(),
-        region: 'US', // Default region
         categories: item.categories || ['Immigration'],
-        tags: ['immigration'], // Default tag
-        contentLength: scrapedContent.content.length,
-        timezone: 'UTC' // Default timezone
-      };
+        tags: ['immigration'],
+      }
 
       // Save to database
       const savedNews = await databaseService.saveNews(newsData);
