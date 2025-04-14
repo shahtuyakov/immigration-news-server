@@ -1,4 +1,4 @@
-import News, { INews } from '../models/News';
+import News, { News as INews } from '../models/News';
 import { logger } from '../utils/logger';
 import ProcessedURL, { IProcessedURL } from '../models/ProcessedURL';
 import mongoose from 'mongoose';

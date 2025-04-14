@@ -8,6 +8,7 @@ import { SummarizerService } from '../services/SummarizerService';
 import databaseService from '../services/DatabaseService';
 import { ObjectId } from 'bson';
 import { chromium } from 'playwright';
+import { News } from '../models/News';
 
 export class NewsScheduler {
   private schedule: string;
@@ -96,18 +97,16 @@ export class NewsScheduler {
         scrapedContent.content,
         item.title
       );
-
       // Prepare the news object to save in database
-      const newsData = {
+      const newsData: Partial<News> = {
         headline: item.title,
-        contentSummary: summary,
+        contentSummary: summary.summary,
         source: item.source,
         sourceUrl: finalUrl,
         publishedAt: item.pubDate || new Date().toISOString(),
-        categories: ['Immigration', 'News'],
-        tags: ['immigration', 'news'],
-        timezone: 'UTC' 
-      }
+        tags: summary.tags,
+        timezone: 'UTC'
+      };
 
       // Save to database
       const savedNews = await databaseService.saveNews(newsData);
