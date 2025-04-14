@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 import config from '../config';
 
 export class SummarizerService {
-  private httpClient = axios.create({ timeout: 20000 });
+  private httpClient = axios.create({ timeout: 30000 });
   private prompt = config.SUMMARY_PROMPT;
 
   constructor() {
@@ -19,7 +19,7 @@ export class SummarizerService {
   async summarizeContent(content: string, title: string): Promise<string> {
     if (!content || content.length < 100) {
       logger.warn('Content too short to summarize');
-      return content; // return original content if too short
+      return content;
     }
 
     const requestPayload = {

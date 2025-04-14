@@ -6,9 +6,6 @@ interface GoogleNewsItem {
   link: string;
   pubDate: string;
   source: string;
-  guid: string;
-  categories?: string[];
-  contentSnippet?: string;
 }
 
 export class RssService {
@@ -42,10 +39,7 @@ export class RssService {
           title: item.title || 'No Title',
           link: item.link || '',
           pubDate: item.pubDate || new Date().toISOString(),
-          source: this.extractSourceFromTitle(item.title || ''),
-          guid: item.guid || item.link || '',
-          categories: (item.categories || ['Immigration']),
-          contentSnippet: item.contentSnippet || ''
+          source: item.source || '',
         } as GoogleNewsItem;
       });
       

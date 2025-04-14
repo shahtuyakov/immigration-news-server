@@ -4,11 +4,6 @@ import config from '../config';
 
 interface ScraperResult {
   content: string;
-  title: string;
-  siteName: string;
-  author?: string;
-  publishedAt?: string;
-  metadata?: any;
 }
 
 export class ScraperService {
@@ -33,8 +28,7 @@ export class ScraperService {
         url: url,
         limit: 1,
         return_format: 'markdown',
-        readability: true,
-        metadata: true
+        readability: true
       };
       
       const response = await axios.post<ScraperResult>(
@@ -61,13 +55,8 @@ export class ScraperService {
       logger.info(`Successfully scraped article from ${domain}. Content length: ${content.length} chars`);
       
       return {
-        content: content,
-        title: response.data.title,
-        siteName: domain,
-        author: 'Unknown Author',
-        publishedAt: new Date().toISOString(),
-        metadata: response.data.metadata
-      };
+        content: content
+      } as ScraperResult;
     } catch (error) {
       logger.error(`Error scraping article from ${url}:`, error);
       throw new Error(`Content scraping failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
